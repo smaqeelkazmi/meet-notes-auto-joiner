@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Uzma / Rev9</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #1a1033; color: #fff; }
+    [hidden] { display: none !important; }
+    button, [role="button"] { min-width: 28px; min-height: 28px; margin: 4px; }
+    #titlebar { display: flex; gap: 12px; align-items: center; padding: 8px 12px; }
+    #people-badge { border-radius: 999px; padding: 2px 8px; background: #333; }
+    #notes-chip { border: 0; background: transparent; color: #fff; }
+    #toolbar {
+      position: relative;
+      z-index: 30;
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      padding: 8px;
+    }
+    #uzma-leave { background: #ea4335; color: #fff; border: 0; border-radius: 50%; }
+    .bang {
+      display: inline-block;
+      margin-left: 2px;
+      color: #f9ab00;
+      font-weight: 700;
+    }
+    #gemini-popover {
+      position: fixed;
+      left: 12px;
+      bottom: 72px;
+      z-index: 25;
+      width: 320px;
+      background: #2b2b2b;
+      color: #fff;
+      padding: 12px;
+      border-radius: 12px;
+    }
+    #gemini-popover.blocking {
+      inset: 0;
+      width: auto;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.35);
+    }
+    #got-it-tip {
+      position: relative;
+      z-index: 40;
+      background: #333;
+      padding: 8px;
+      width: 220px;
+    }
+  </style>
+</head>
+<body>
+  <section id="prejoin">
+    <button id="pre-mic" type="button"></button>
+    <button id="pre-cam" type="button"></button>
+    <button id="join" type="button">Join now</button>
+  </section>
+
+  <section id="call" hidden>
+    <header id="titlebar" data-call-titlebar>
+      <span data-meeting-title>9:42 PM | Uzma / Rev9</span>
+      <button id="notes-chip" type="button" data-notes-chip aria-label="Taking notes with Gemini" hidden>✎</button>
+      <button id="take-notes" type="button" aria-label="Take notes for me" hidden>Take notes for me</button>
+      <div id="people-badge" role="button" data-people-badge="2" aria-label="2 people in the call">2</div>
+    </header>
+    <div id="notes-banner" role="status" hidden>Gemini is taking notes</div>
+    <div id="consent" role="dialog" aria-label="Notes consent" hidden>
+      <button id="start-notes" type="button">Start taking notes</button>
+    </div>
+    <div id="toolbar" role="toolbar" aria-label="Call controls" data-panel="call-controls">
+      <button id="uzma-mic" type="button"><span class="bang" aria-label="Microphone problem">!</span></button>
+      <button id="uzma-cam" type="button"><span class="bang" aria-label="Camera problem">!</span></button>
+      <button type="button" aria-label="Present now">Present</button>
+      <button type="button" aria-label="Send a reaction">Reactions</button>
+      <button type="button" aria-label="Turn on captions">Captions</button>
+      <button type="button" aria-label="Raise hand">Raise</button>
+      <button id="more" type="button" aria-label="More options">More</button>
+      <button id="uzma-leave" type="button" aria-label="Leave call">☎</button>
+    </div>
+    <aside id="gemini-popover" data-callout="gemini" role="dialog" aria-label="Gemini is available">
+      <button id="gemini-close" type="button" aria-label="Close">×</button>
+      <h2>Gemini is available</h2>
+      <p>Gemini is available to answer questions about meeting content and discussion. It won't create a recording or store caption data after the meeting ends. Prompts and responses are saved in your Conversation History. The meeting host can turn it off in settings.</p>
+      <button id="gemini-learn" type="button">Learn more</button>
+      <button id="gemini-dismiss" type="button">Don't show again</button>
+    </aside>
+    <div id="got-it-tip" role="dialog" aria-label="Tip" hidden>
+      <p>You can turn on captions</p>
+      <button id="got-it" type="button">Got it</button>
+    </div>
+  </section>
+
+  <section id="left" hidden>
+    <div id="left-banner">You left the meeting</div>
+    <button id="rejoin" type="button">Rejoin</button>
+  </section>
+
+  <script>
+    const scenario = new URLSearchParams(location.search).get("scenario") || "already";
+    const state = { micOn: true, camOn: true };
+
+    function labelDevice(node, on, kind) {
+      const offLabel = kind === "mic" ? "Turn off microphone" : "Turn off camera";
+      const onLabel = kind === "mic" ? "Turn on microphone" : "Turn on camera";
+      const bang = node.querySelector(".bang");
+      node.setAttribute("aria-label", on ? offLabel : onLabel);
+      node.replaceChildren();
+      if (bang) node.appendChild(bang);
+    }
+
+    function syncMedia() {
+      labelDevice(document.getElementById("pre-mic"), state.micOn, "mic");
+      labelDevice(document.getElementById("pre-cam"), state.camOn, "cam");
+      labelDevice(document.getElementById("uzma-mic"), state.micOn, "mic");
+      labelDevice(document.getElementById("uzma-cam"), state.camOn, "cam");
+    }
+
+    function show(id) {
+      for (const section of ["prejoin", "call", "left"]) {
+        document.getElementById(section).hidden = section !== id;
+      }
+    }
+
+    function hideGemini() {
+      const pop = document.getElementById("gemini-popover");
+      pop.hidden = true;
+      pop.dataset.dismissed = "yes";
+      pop.classList.remove("blocking");
+    }
+
+    function showNotes() {
+      document.getElementById("notes-chip").hidden = false;
+      document.getElementById("notes-banner").hidden = false;
+      document.getElementById("take-notes").hidden = true;
+      document.getElementById("consent").hidden = true;
+    }
+
+    function enterCall() {
+      show("call");
+      state.micOn = true;
+      state.camOn = true;
+      syncMedia();
+      const pop = document.getElementById("gemini-popover");
+      pop.hidden = false;
+      pop.classList.remove("blocking");
+      document.getElementById("got-it-tip").hidden = true;
+      document.getElementById("notes-chip").hidden = true;
+      document.getElementById("notes-banner").hidden = true;
+      document.getElementById("take-notes").hidden = true;
+      document.getElementById("consent").hidden = true;
+      if (scenario === "already" || scenario === "shown") {
+        showNotes();
+      } else if (scenario === "start") {
+        document.getElementById("take-notes").hidden = false;
+        pop.classList.add("blocking");
+        document.getElementById("got-it-tip").hidden = false;
+      } else if (scenario === "no-notes") {
+        pop.hidden = true;
+      }
+    }
+
+    document.getElementById("pre-mic").addEventListener("click", () => {
+      state.micOn = !state.micOn;
+      syncMedia();
+    });
+    document.getElementById("pre-cam").addEventListener("click", () => {
+      state.camOn = !state.camOn;
+      syncMedia();
+    });
+    document.getElementById("uzma-mic").addEventListener("click", () => {
+      state.micOn = !state.micOn;
+      syncMedia();
+    });
+    document.getElementById("uzma-cam").addEventListener("click", () => {
+      state.camOn = !state.camOn;
+      syncMedia();
+    });
+    document.getElementById("join").addEventListener("click", () => enterCall());
+    document.getElementById("gemini-dismiss").addEventListener("click", hideGemini);
+    document.getElementById("gemini-close").addEventListener("click", hideGemini);
+    document.getElementById("gemini-learn").addEventListener("click", (event) => {
+      event.preventDefault();
+      event.currentTarget.dataset.clicked = "yes";
+    });
+    document.getElementById("got-it").addEventListener("click", () => {
+      const tip = document.getElementById("got-it-tip");
+      tip.hidden = true;
+      tip.dataset.dismissed = "yes";
+    });
+    document.getElementById("take-notes").addEventListener("click", () => {
+      document.getElementById("consent").hidden = false;
+    });
+    document.getElementById("start-notes").addEventListener("click", () => showNotes());
+    document.getElementById("uzma-leave").addEventListener("click", () => show("left"));
+
+    const join = document.getElementById("join");
+    join.textContent = "Join now";
+    join.setAttribute("aria-label", "Join now");
+    syncMedia();
+    if (scenario === "shown") {
+      state.micOn = false;
+      state.camOn = false;
+      enterCall();
+    }
+  </script>
+</body>
+</html>

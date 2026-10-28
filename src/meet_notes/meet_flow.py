@@ -26,6 +26,10 @@ from meet_notes.selectors import (
     CONSENT_ACCEPT_SELECTORS,
     DEVICE_LABEL_SELECTORS,
     JOIN_SELECTORS,
+    CALLOUT_DISMISS_SELECTORS,
+    IN_CALL_LEAVE_SELECTORS,
+    IN_CALL_TITLE_SELECTORS,
+    IN_CALL_TOOLBAR_SELECTORS,
     LEAVE_CONFIRM_SELECTORS,
     LEAVE_SELECTORS,
     LEFT_CONFIRM_SELECTORS,
@@ -35,6 +39,7 @@ from meet_notes.selectors import (
     NOTES_ACTIVE_SELECTORS,
     NOTES_ENTRY_SELECTORS,
     NOTES_MENU_ITEM_SELECTORS,
+    PARTICIPANT_BADGE_SELECTORS,
     PEOPLE_BUTTON_SELECTORS,
     PREJOIN_DISMISS_SELECTORS,
     START_NOTES_SELECTORS,
@@ -252,6 +257,7 @@ def _enter_call(page, options, result, progress, halted, sleep, monotonic, now) 
             result.error = "Shutdown requested while entering the call"
             return False
         if _in_call(page):
+            log_event(logger, logging.INFO, "in call detected")
             _confirm_muted(page, result, sleep, monotonic)
             return True
         _mute(page, result)
@@ -326,6 +332,8 @@ def _ensure_notes(page, options, result, progress, halted, sleep, monotonic, now
     while monotonic() < deadline:
         if halted():
             return
+        # The Gemini card and "Got it" tips sit over the notes control.
+        _dismiss_callouts(page)
         signal = _notes_signal(page)
         if signal:
             result.notes_verified = True
@@ -390,14 +398,23 @@ def _verify(page, result, progress, now) -> None:
     if signal:
         result.notes_verified = True
         result.verification_signal = signal
-        progress(
-            "starting_notes",
-            notes_verified=True,
-            notes_verified_at=now(),
-            notes_already_on=result.notes_already_on,
-            verification_signal=signal,
+        fields = {
+            "notes_verified": True,
+            "notes_verified_at": now(),
+            "notes_already_on": result.notes_already_on,
+            "verification_signal": signal,
+        }
+        if result.extra.get("notes_started_marked") is not True:
+            fields["notes_started_at"] = now()
+            result.extra["notes_started_marked"] = True
+        progress("starting_notes", **fields)
+        log_event(
+            logger,
+            logging.INFO,
+            "notes_started",
+            signal=signal,
+            already_on=result.notes_already_on,
         )
-        log_event(logger, logging.INFO, "notes verified", signal=signal, already_on=result.notes_already_on)
     else:
         result.notes_verified = False
         log_event(logger, logging.WARNING, "notes not verified", clicked=result.notes_clicked)
@@ -548,6 +565,7 @@ def _log_participants(page, options: FlowOptions, result: FlowResult, level: int
 
 
 def _leave(page) -> bool:
+    _dismiss_callouts(page)
     clicked = _click_first(page, LEAVE_SELECTORS)
     if not clicked:
         return False
@@ -556,7 +574,27 @@ def _leave(page) -> bool:
 
 
 def _in_call(page) -> bool:
-    """The meeting UI is up. A lobby hang-up button alone is not enough."""
+    """The meeting UI is up.
+
+    A lobby hang-up by itself is not enough: the waiting room uses the same
+    accessible name and has no call toolbar. The hang-up inside the bottom
+    toolbar is enough on its own. Toolbar controls, the participant-count
+    badge, and the title bar are fallbacks when that hang-up is renamed.
+
+    A live headless run sat in the call (red hang-up, toolbar, top-right
+    count, pencil chip, Gemini popover) and still timed out. This check
+    used to require the hang-up plus a People button or an exact notes
+    control. That UI has a count badge and a pencil chip instead, so the
+    extra requirement never passed.
+    """
+    if _first_visible(page, IN_CALL_LEAVE_SELECTORS)[0] is not None:
+        return True
+    if _first_visible(page, IN_CALL_TOOLBAR_SELECTORS)[0] is not None:
+        return True
+    if _first_visible(page, PARTICIPANT_BADGE_SELECTORS)[0] is not None:
+        return True
+    if _first_visible(page, IN_CALL_TITLE_SELECTORS)[0] is not None:
+        return True
     if _first_visible(page, LEAVE_SELECTORS)[0] is None:
         return False
     if _first_visible(page, PEOPLE_BUTTON_SELECTORS)[0] is not None:
@@ -566,6 +604,52 @@ def _in_call(page) -> bool:
     if _first_visible(page, NOTES_ACTIVE_SELECTORS)[0] is not None:
         return True
     return False
+
+
+def _dismiss_callouts(page) -> None:
+    """Close Gemini cards and Got it tips, including when one covers another.
+
+    A covered control is not proof there is nothing to dismiss. Try the next
+    tip, and if a dismiss button is only blocked by another card, click it anyway.
+    """
+    for _ in range(4):
+        if not _click_any_dismiss(page):
+            return
+
+
+def _click_any_dismiss(page) -> bool:
+    clicked = False
+    for selector in CALLOUT_DISMISS_SELECTORS:
+        try:
+            locator = page.locator(selector)
+            count = min(locator.count(), 3)
+        except Exception:
+            continue
+        for index in range(count):
+            item = locator.nth(index)
+            if not _try_dismiss_click(item):
+                continue
+            log_event(logger, logging.INFO, "dismissed meet popover")
+            clicked = True
+            break
+    return clicked
+
+
+def _try_dismiss_click(item) -> bool:
+    try:
+        if not item.is_visible():
+            return False
+    except Exception:
+        return False
+    try:
+        item.click(timeout=400)
+        return True
+    except Exception:
+        try:
+            item.click(timeout=400, force=True)
+            return True
+        except Exception:
+            return False
 
 
 def _left_banner(page) -> bool:

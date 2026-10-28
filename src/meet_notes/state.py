@@ -388,7 +388,7 @@ class StateStore:
                 fields["joined_at"] = now
             if result.others_seen and row.others_joined_at is None:
                 fields["others_joined_at"] = now
-            if result.notes_clicked and row.notes_started_at is None:
+            if (result.notes_clicked or result.notes_verified) and row.notes_started_at is None:
                 fields["notes_started_at"] = now
             if result.notes_verified and row.notes_verified_at is None:
                 fields["notes_verified_at"] = now
