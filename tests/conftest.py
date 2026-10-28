@@ -144,9 +144,9 @@ def page(browser):
         context.close()
 
 
-def meet_url(meet_server, scenario: str) -> str:
+def meet_url(meet_server, scenario: str, filename: str = "meet_page.html") -> str:
     port = meet_server.server_address[1]
-    return f"http://127.0.0.1:{port}/meet_page.html?scenario={scenario}"
+    return f"http://127.0.0.1:{port}/{filename}?scenario={scenario}"
 
 
 def due_bounds(now: datetime | None = None) -> tuple[datetime, datetime, datetime]:

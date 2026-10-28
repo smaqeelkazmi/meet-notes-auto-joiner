@@ -24,6 +24,7 @@ from meet_notes.logging_setup import log_event
 from meet_notes.meet_flow import FlowOptions, flow_options_from_config, run_meet_flow, unsafe_target
 from meet_notes.models import FlowResult, MeetingRow
 from meet_notes.page_bridge import SyncPage
+from meet_notes.selectors import TOOLBAR_HTML_SELECTORS
 from meet_notes.state import StateStore
 
 logger = logging.getLogger("meet_notes.browser")
@@ -59,7 +60,7 @@ class ProfileSession:
                 shot_dir = self.cfg.log_dir / "screenshots"
 
                 def on_failure(failed_page, result: FlowResult, key=row.instance_key) -> None:
-                    _screenshot(failed_page, shot_dir, key, result.outcome)
+                    capture_failure_artifacts(failed_page, shot_dir, key, result.outcome)
 
                 local.on_failure = on_failure
 
@@ -310,12 +311,72 @@ def _context_has_session(context) -> bool:
     return bool(names & {"SID", "SAPISID", "__Secure-1PSID", "__Secure-3PSID"})
 
 
-def _screenshot(page, directory: Path, instance_key: str, outcome: str) -> None:
+def capture_failure_artifacts(page, directory: Path, instance_key: str, outcome: str) -> Path:
+    """Screenshot plus the accessibility tree and toolbar HTML.
+
+    Written beside each other when a join or notes attempt fails, so the
+    next Meet UI change can be diffed without another live call.
+    """
     directory.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     safe = _SAFE.sub("_", instance_key)[:80] or "meeting"
     path = directory / f"{stamp}-{safe}-{outcome}.png"
-    page.screenshot(path=str(path), full_page=False)
+    try:
+        page.screenshot(path=str(path), full_page=False)
+    except Exception:
+        logger.exception("failure screenshot failed")
+    sidecar = path.with_suffix(".dom.txt")
+    sidecar.write_text(_failure_dom(page), encoding="utf-8")
+    log_event(
+        logger,
+        logging.INFO,
+        "saved failure artifacts",
+        screenshot=str(path),
+        dom=str(sidecar),
+        outcome=outcome,
+    )
+    return path
+
+
+def _failure_dom(page) -> str:
+    parts = [
+        "# accessibility",
+        _accessibility_snapshot(page),
+        "",
+        "# toolbar",
+        _toolbar_html(page) or "(no toolbar element found)",
+    ]
+    return "\n".join(parts)[:100_000]
+
+
+def _accessibility_snapshot(page) -> str:
+    try:
+        locator = page.locator("body")
+        snapshot = locator.aria_snapshot(timeout=2000)
+    except Exception as exc:
+        return f"(accessibility snapshot failed: {exc})"
+    text = (snapshot or "").strip()
+    return text or "(empty accessibility snapshot)"
+
+
+def _toolbar_html(page) -> str | None:
+    for selector in TOOLBAR_HTML_SELECTORS:
+        try:
+            locator = page.locator(selector)
+            count = min(locator.count(), 3)
+        except Exception:
+            continue
+        for index in range(count):
+            item = locator.nth(index)
+            try:
+                if not item.is_visible():
+                    continue
+                html = item.evaluate("node => node.outerHTML")
+            except Exception:
+                continue
+            if html:
+                return str(html)[:20_000]
+    return None
 
 
 def _write_profile_notice(profile: Path) -> None:

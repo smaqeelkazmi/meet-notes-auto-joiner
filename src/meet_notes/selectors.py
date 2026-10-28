@@ -15,7 +15,20 @@ as published at https://support.google.com/meet/answer/14754931 (read 2026-10-28
   dialog's Leave. Hanging up uses the separate "Leave call" control.
 - While notes are on, Meet tells everyone and shows a pencil icon.
   The strongest machine-readable signal we can rely on without a live DOM
-  is a "Stop taking notes" control or an exact "Taking notes" label.
+  is a "Stop taking notes" control, a "Taking notes" label (including
+  "Taking notes with Gemini"), or a "Gemini is taking notes" banner.
+  Do not treat the "Gemini is available" popover as notes. That card is a
+  tip. Dismiss it with "Don't show again" or its close button before
+  looking for the notes control.
+
+The in-call hang-up lives in the bottom toolbar. A lobby "Leave call"
+button uses the same name and is not proof of being in the meeting.
+A 2026 headless run (Uzma / Rev9) was already in the call: red hang-up,
+mic and camera with fake-media "!" badges, present / reactions / captions /
+raise hand / more, a top-right count of 2, and the pencil chip. The old
+check required the hang-up plus a People button or an exact notes label,
+and this UI has a count badge and a "Taking notes with Gemini" chip
+instead, so the bot logged join_failed.
 
 The account's Meet language should be English. These strings are English.
 A non-English UI needs matching entries added at the top of each list.
@@ -97,9 +110,115 @@ JOIN_SELECTORS = [
 
 LEAVE_SELECTORS = [
     "button[aria-label='Leave call']",
+    "button[aria-label^='Leave call']",
     "button[aria-label='Leave the call']",
+    "button[aria-label^='Leave the call']",
+    "button[aria-label^='Leave meeting']",
     "[role='button'][aria-label='Leave call']",
+    "[role='button'][aria-label^='Leave call']",
+    "[role='button'][aria-label^='Leave the call']",
+    "[role='toolbar'] [data-tooltip^='Leave call']",
+    "[data-tooltip='Leave call']",
+    "[data-tooltip^='Leave call']",
     "button:has-text('Leave call')",
+]
+
+# Hang-up inside the bottom call toolbar. Enough on its own to know we are
+# in the meeting. The lobby button is not inside this toolbar, and an
+# exact aria-label misses "Leave call" plus a shortcut, or a tooltip on an
+# icon-only control. `button:has-text` misses that icon-only control too.
+IN_CALL_LEAVE_SELECTORS = [
+    "[role='toolbar'] button[aria-label='Leave call']",
+    "[role='toolbar'] button[aria-label^='Leave call']",
+    "[role='toolbar'] button[aria-label^='Leave the call']",
+    "[role='toolbar'] button[aria-label^='Leave meeting']",
+    "[role='toolbar'] [role='button'][aria-label^='Leave call']",
+    "[role='toolbar'] [role='button'][aria-label^='Leave the call']",
+    "[aria-label='Call controls'] button[aria-label^='Leave call']",
+    "[aria-label='Call controls'] button[aria-label^='Leave the call']",
+    "[aria-label='Call controls'] [role='button'][aria-label^='Leave call']",
+    "[data-panel='call-controls'] button[aria-label^='Leave call']",
+    "[data-panel='call-controls'] [role='button'][aria-label^='Leave call']",
+    "[role='toolbar'] button:has([aria-label^='Leave call'])",
+    "[role='toolbar'] [data-tooltip^='Leave call']",
+    "[data-panel='call-controls'] [data-tooltip^='Leave call']",
+    "[aria-label^='Leave call']:near([aria-label^='Raise hand'], 400)",
+    "[aria-label^='Leave call']:near([aria-label*='aption'], 400)",
+    "[data-tooltip^='Leave call']:near([aria-label^='Raise hand'], 400)",
+]
+
+# Bottom-bar controls that the greenroom and the admit lobby do not show.
+# Mic and camera are excluded: both screens have those.
+IN_CALL_TOOLBAR_SELECTORS = [
+    "button[aria-label='Present now']",
+    "button[aria-label^='Present now']",
+    "button[aria-label^='Share screen']",
+    "button[aria-label^='Present']",
+    "[role='button'][aria-label^='Present now']",
+    "[role='button'][aria-label^='Share screen']",
+    "button[aria-label='Send a reaction']",
+    "button[aria-label^='Send a reaction']",
+    "button[aria-label^='Reactions']",
+    "[role='button'][aria-label^='Send a reaction']",
+    "button[aria-label='Raise hand']",
+    "button[aria-label^='Raise hand']",
+    "button[aria-label^='Lower hand']",
+    "[role='button'][aria-label^='Raise hand']",
+    "[role='button'][aria-label^='Lower hand']",
+    "button[aria-label='Turn on captions']",
+    "button[aria-label^='Turn on captions']",
+    "button[aria-label^='Turn off captions']",
+    "button[aria-label^='Show captions']",
+    "[role='button'][aria-label*='aption']",
+    "button[aria-label*='aption']",
+]
+
+# Top-right count. The Uzma / Rev9 badge was "2", not a People button.
+PARTICIPANT_BADGE_SELECTORS = [
+    "[data-participant-count]",
+    "[data-people-badge]",
+    "[role='button'][aria-label*='Show everyone']",
+    "[role='button'][aria-label*='people in']",
+    "[role='button'][aria-label*='in the call']",
+    "button[aria-label*='in the call']",
+    "button[aria-label*='Show everyone']",
+]
+
+# Clock and meeting title across the top of the call, not the greenroom.
+IN_CALL_TITLE_SELECTORS = [
+    "[data-call-titlebar]",
+    "[data-meeting-title]",
+    "[aria-label='Meeting details']",
+    "button[aria-label^='Meeting details']",
+    "[role='button'][aria-label^='Meeting details']",
+]
+
+# Saved next to a failure screenshot so the next selector drift is visible.
+TOOLBAR_HTML_SELECTORS = [
+    "[role='toolbar'][aria-label='Call controls']",
+    "[data-panel='call-controls']",
+    "[aria-label='Call controls']",
+    "[role='toolbar']",
+]
+
+# Tips that sit on top of the call. "Learn more" is not here: it navigates away.
+# Straight and curly apostrophes both appear on the Gemini card.
+CALLOUT_DISMISS_SELECTORS = [
+    "[data-callout='gemini'] button:has-text(\"Don't show again\")",
+    "[data-callout='gemini'] button:has-text(\"Don’t show again\")",
+    "[aria-label='Gemini is available'] button:has-text(\"Don't show again\")",
+    "[aria-label='Gemini is available'] button:has-text(\"Don’t show again\")",
+    "button:has-text(\"Don't show again\")",
+    "button:has-text(\"Don’t show again\")",
+    "[data-callout='gemini'] button[aria-label='Close']",
+    "[data-callout='gemini'] button[aria-label='Dismiss']",
+    "[aria-label='Gemini is available'] button[aria-label='Close']",
+    "[aria-label='Gemini is available'] button[aria-label='Dismiss']",
+    "button[aria-label='Close']:near(:text('Gemini is available'), 300)",
+    "button[aria-label='Dismiss']:near(:text('Gemini is available'), 300)",
+    "button:has-text('Got it')",
+    "button:has-text('Dismiss')",
+    "button:has-text('Not now')",
 ]
 
 # Shown only after the hang-up button is clicked. Not used before that,
@@ -124,7 +243,12 @@ PEOPLE_BUTTON_SELECTORS = [
     "button[aria-label*='Show participants']",
     "[role='button'][aria-label^='People']",
     "[role='button'][aria-label^='Participants']",
+    "[role='button'][aria-label*='Show everyone']",
+    "[role='button'][aria-label*='people in']",
+    "[role='button'][aria-label*='in the call']",
+    "button[aria-label*='in the call']",
     "[data-participant-count]",
+    "[data-people-badge]",
 ]
 
 TILE_SELECTORS = [
@@ -175,14 +299,22 @@ CONSENT_ACCEPT_SELECTORS = [
     "[role='dialog'] button:has-text('Got it')",
 ]
 
-# Exact labels. Do not use a substring such as "taking notes": that also
-# matches the Start taking notes button and would count as already active.
+# Do not use a lowercase substring such as "taking notes": that also matches
+# the Start taking notes button. "Taking notes" (capital T) and
+# "Gemini is taking notes" do not.
 NOTES_ACTIVE_SELECTORS = [
     "button[aria-label='Stop taking notes']",
     "[aria-label='Stop taking notes']",
     "[aria-label='Taking notes']",
+    "[aria-label^='Taking notes']",
     "[aria-label='Notes are being taken']",
     "[aria-label='Gemini is taking notes']",
+    "[aria-label*='Gemini is taking notes']",
     "[aria-label='Meeting notes are on']",
+    "[aria-label^='Meeting notes are on']",
+    "[data-notes-chip][aria-label*='Taking notes']",
+    "[data-notes-chip][aria-label*='Gemini']",
+    "[role='status']:text-is('Gemini is taking notes')",
+    ":text-is('Gemini is taking notes')",
     "[data-meet-notes='active']",
 ]

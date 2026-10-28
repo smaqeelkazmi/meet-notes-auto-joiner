@@ -71,6 +71,14 @@ class SyncLocator:
     def inner_text(self) -> str:
         return _call(self._loop, self._locator.inner_text())
 
+    def evaluate(self, expression: str, arg: Any = None) -> Any:
+        if arg is None:
+            return _call(self._loop, self._locator.evaluate(expression))
+        return _call(self._loop, self._locator.evaluate(expression, arg))
+
+    def aria_snapshot(self, **kwargs: Any) -> str:
+        return _call(self._loop, self._locator.aria_snapshot(**kwargs))
+
     async def _nth(self, index: int) -> Any:
         return self._locator.nth(index)
 
