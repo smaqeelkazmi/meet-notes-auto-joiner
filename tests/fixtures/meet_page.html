@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Meet fixture</title>
+  <style>
+    body { font-family: sans-serif; margin: 1rem; }
+    [hidden] { display: none !important; }
+    button { margin: 0.25rem; }
+  </style>
+</head>
+<body>
+  <section id="prejoin">
+    <button id="mic" type="button" aria-label="Turn off microphone">Turn off microphone</button>
+    <button id="cam" type="button" aria-label="Turn off camera">Turn off camera</button>
+    <button id="join" type="button">Join now</button>
+  </section>
+  <section id="lobby" hidden>
+    <p>Asking to be let in</p>
+    <button id="lobby-leave" type="button" aria-label="Leave call">Leave call</button>
+  </section>
+  <section id="call" hidden>
+    <button id="call-mic" type="button" hidden>Turn off microphone</button>
+    <button id="call-cam" type="button" hidden>Turn off camera</button>
+    <button id="people" type="button" aria-label="People - 1 joined">People</button>
+    <div id="roster" role="list" aria-label="Participants"></div>
+    <div id="notes-status" data-meet-notes="inactive" aria-label="Notes are off">Notes are off</div>
+    <button id="take-notes" type="button" aria-label="Take notes for me">Take notes for me</button>
+    <button id="more" type="button" aria-label="More options" hidden>More options</button>
+    <div id="menu" hidden>
+      <div id="menu-notes" role="menuitem">Take notes for me</div>
+    </div>
+    <button id="stop-notes" type="button" aria-label="Stop taking notes" hidden>Stop taking notes</button>
+    <button id="leave" type="button" aria-label="Leave call">Leave call</button>
+    <div id="consent" role="dialog" aria-label="Take notes for me" hidden>
+      <button id="start-notes" type="button">Start taking notes</button>
+      <button id="continue-notes" type="button" hidden>Continue</button>
+    </div>
+  </section>
+  <section id="left" hidden>
+    <div id="left-banner">You left the meeting</div>
+    <button id="rejoin" type="button">Rejoin</button>
+  </section>
+  <script>
+    const scenario = new URLSearchParams(location.search).get("scenario") || "happy";
+    const state = { micOn: true, camOn: true, others: [], notes: "off" };
+
+    function labelDevice(node, on, kind) {
+      const offLabel = kind === "mic" ? "Turn off microphone" : "Turn off camera";
+      const onLabel = kind === "mic" ? "Turn on microphone" : "Turn on camera";
+      node.setAttribute("aria-label", on ? offLabel : onLabel);
+      node.textContent = node.getAttribute("aria-label");
+    }
+
+    function syncMedia() {
+      labelDevice(document.getElementById("mic"), state.micOn, "mic");
+      labelDevice(document.getElementById("cam"), state.camOn, "cam");
+      labelDevice(document.getElementById("call-mic"), state.micOn, "mic");
+      labelDevice(document.getElementById("call-cam"), state.camOn, "cam");
+    }
+
+    function renderRoster() {
+      const roster = document.getElementById("roster");
+      roster.replaceChildren();
+      const people = [{ id: "self", name: "You" }].concat(state.others);
+      for (const person of people) {
+        const item = document.createElement("div");
+        item.setAttribute("role", "listitem");
+        item.setAttribute("data-participant-id", person.id);
+        item.textContent = person.name;
+        roster.appendChild(item);
+      }
+      document.getElementById("people").setAttribute(
+        "aria-label",
+        "People - " + people.length + " joined"
+      );
+    }
+
+    function show(id) {
+      for (const section of ["prejoin", "lobby", "call", "left"]) {
+        document.getElementById(section).hidden = section !== id;
+      }
+    }
+
+    function setNotesActive() {
+      state.notes = "active";
+      const status = document.getElementById("notes-status");
+      status.dataset.meetNotes = "active";
+      status.setAttribute("data-meet-notes", "active");
+      status.setAttribute("aria-label", "Taking notes");
+      status.textContent = "Taking notes";
+      document.getElementById("stop-notes").hidden = false;
+      document.getElementById("take-notes").hidden = true;
+      document.getElementById("more").hidden = true;
+      document.getElementById("menu").hidden = true;
+      document.getElementById("consent").hidden = true;
+      if (scenario === "until-alone") {
+        setTimeout(() => {
+          state.others = [];
+          renderRoster();
+        }, 400);
+      }
+    }
+
+    function enterCall(withSam) {
+      show("call");
+      const immediateSam = withSam || scenario === "already-on";
+      state.others = immediateSam ? [{ id: "sam", name: "Sam" }] : [];
+      renderRoster();
+      if (scenario === "already-on") {
+        setNotesActive();
+      }
+      const delayedSam = ["happy", "consent", "until-alone", "overflow", "no-notes", "until-end"];
+      if (!immediateSam && delayedSam.indexOf(scenario) !== -1) {
+        setTimeout(() => {
+          state.others = [{ id: "sam", name: "Sam" }];
+          renderRoster();
+        }, 200);
+      }
+    }
+
+    function toggleMedia(event) {
+      if (event.currentTarget.id === "mic" || event.currentTarget.id === "call-mic") {
+        state.micOn = !state.micOn;
+      } else {
+        state.camOn = !state.camOn;
+      }
+      syncMedia();
+    }
+    document.getElementById("mic").addEventListener("click", toggleMedia);
+    document.getElementById("cam").addEventListener("click", toggleMedia);
+    document.getElementById("call-mic").addEventListener("click", toggleMedia);
+    document.getElementById("call-cam").addEventListener("click", toggleMedia);
+    document.getElementById("join").addEventListener("click", () => {
+      if (scenario === "no-admit") {
+        show("lobby");
+        return;
+      }
+      if (scenario === "admit") {
+        show("lobby");
+        setTimeout(() => enterCall(true), 300);
+        return;
+      }
+      if (scenario === "late") {
+        enterCall(true);
+        return;
+      }
+      enterCall(false);
+    });
+    document.getElementById("lobby-leave").addEventListener("click", () => {
+      show("left");
+    });
+    document.getElementById("take-notes").addEventListener("click", () => {
+      document.getElementById("consent").hidden = false;
+      document.getElementById("continue-notes").hidden = scenario !== "consent";
+      document.getElementById("start-notes").hidden = false;
+    });
+    document.getElementById("more").addEventListener("click", () => {
+      document.getElementById("menu").hidden = false;
+    });
+    document.getElementById("menu-notes").addEventListener("click", () => {
+      document.getElementById("consent").hidden = false;
+      document.getElementById("continue-notes").hidden = true;
+      document.getElementById("start-notes").hidden = false;
+    });
+    document.getElementById("start-notes").addEventListener("click", () => {
+      if (scenario === "consent") {
+        document.getElementById("start-notes").hidden = true;
+        document.getElementById("continue-notes").hidden = false;
+        return;
+      }
+      setNotesActive();
+    });
+    document.getElementById("continue-notes").addEventListener("click", () => {
+      setNotesActive();
+    });
+    document.getElementById("leave").addEventListener("click", () => {
+      show("left");
+    });
+
+    const join = document.getElementById("join");
+    if (scenario === "admit" || scenario === "no-admit") {
+      join.textContent = "Ask to join";
+      join.setAttribute("aria-label", "Ask to join");
+    } else {
+      join.textContent = "Join now";
+      join.setAttribute("aria-label", "Join now");
+    }
+    if (scenario === "no-notes") {
+      document.getElementById("take-notes").hidden = true;
+      document.getElementById("more").hidden = true;
+    }
+    if (scenario === "overflow") {
+      document.getElementById("take-notes").hidden = true;
+      document.getElementById("more").hidden = false;
+    }
+    if (scenario === "mute-late") {
+      document.getElementById("mic").hidden = true;
+      document.getElementById("cam").hidden = true;
+      document.getElementById("call-mic").hidden = false;
+      document.getElementById("call-cam").hidden = false;
+    }
+    syncMedia();
+    renderRoster();
+  </script>
+</body>
+</html>

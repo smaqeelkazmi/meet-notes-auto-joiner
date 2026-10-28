@@ -1,0 +1,105 @@
+# Meet Notes Auto-Joiner
+# Copy to config.yaml or to ~/.config/meet-notes/config.yaml.
+# Environment variables prefixed with MEET_NOTES_ override these values.
+# Leave path fields blank to use the per-user config directory.
+# Do not put secrets in this file.
+
+calendar_id: primary
+timezone: Asia/Karachi
+
+# How often to read the calendar, and how far ahead to look.
+poll_interval_seconds: 60
+lookahead_hours: 48
+
+# Join this many minutes before the start. Still join if the process wakes
+# up to join_after_start_minutes after the start. Then give up.
+join_lead_minutes: 3
+join_after_start_minutes: 10
+
+# By default the bot starts notes as soon as it is in the call. It does not
+# wait for another person. Set wait_for_participant to true to keep the old
+# wait. nobody_joined_timeout_minutes applies only in that case.
+wait_for_participant: false
+nobody_joined_timeout_minutes: 10
+admit_timeout_minutes: 5
+participant_poll_seconds: 5
+
+# true: skip events this account did not organize. A primary calendar sets
+# organizer.self. If self is missing, organizer.email is compared with the
+# signed-in account. Skips are logged and are not emailed.
+only_organizer_meetings: true
+
+# leave_after_notes: leave once the UI shows notes are active.
+# Gemini notes keep running for the rest of the meeting after this account
+# leaves, so this is the default. until_meeting_end and until_alone remain
+# available if you want the account to stay in the call.
+stay_mode: leave_after_notes
+stay_grace_minutes: 2
+alone_confirm_seconds: 20
+stay_even_if_unverified: false
+leave_even_if_unverified: true
+
+# Every non-cancelled event with a Meet link is in scope, including ones
+# you have not accepted. Set skip_declined to true to skip declined events.
+skip_declined: false
+skip_all_day: true
+
+# An event missing from this many successful polls is treated as cancelled.
+missing_polls_before_cancel: 2
+# Retries only happen when the Meet page never opened.
+max_prejoin_attempts: 3
+# How many meetings may be in the browser at once. Each one is its own
+# tab in the same signed-in profile. 1 to 8.
+# With leave_after_notes each tab lives about a minute, so 4 is fine on an 8 GB Mac.
+max_concurrent_joins: 4
+
+# Exact Meet display names that count as this account, plus the literal "You".
+self_display_names:
+  - You
+  - Aqeel
+
+headless: true
+browser_locale: en-US
+browser_channel: chromium
+no_sandbox: false
+screenshot_on_failure: true
+navigation_timeout_seconds: 45
+# How long to wait for the notes control to show that notes are active.
+# The bot leaves as soon as that happens. This is a cap, at most 60 seconds.
+notes_ui_timeout_seconds: 45
+
+# Blank means ~/.config/meet-notes/ on macOS and Linux,
+# and %APPDATA%\meet-notes\ on Windows.
+profile_dir: ""
+credentials_file: ""
+token_file: ""
+state_db: ""
+log_dir: ""
+# Blank means <state dir>/meeting-log.csv. One append-only row per attempt.
+meeting_log: ""
+log_level: INFO
+dry_run: false
+oauth_port: 0
+
+# Push is optional. Polling is always on. A public HTTPS endpoint is required.
+push:
+  enabled: false
+  listen_host: 127.0.0.1
+  listen_port: 8766
+  public_url: ""
+  channel_token: ""
+  renew_minutes_before: 60
+
+# Email is off until you set enabled and the SMTP host. The password is NOT
+# a key in this file. Set MEET_NOTES_SMTP_PASSWORD, or create
+# ~/.config/meet-notes/smtp_password with mode 600.
+# Zoho: smtp.zoho.com, port 465, smtp_ssl true.
+# Gmail: smtp.gmail.com, port 587, smtp_ssl false (STARTTLS), with an app password.
+notify:
+  enabled: false
+  to: ""
+  from: ""
+  smtp_host: ""
+  smtp_port: 465
+  smtp_ssl: true
+  smtp_username: ""

@@ -1,0 +1,23 @@
+# Local and EC2 runtime. The container does not contain secrets.
+# Copy config.docker.example.yaml to .meet-notes/config.yaml
+# and put credentials.json in .meet-notes/secrets/.
+
+services:
+  meet-notes:
+    build: .
+    image: meet-notes-auto-joiner
+    init: true
+    # 2gb for the default of 4 concurrent Meet tabs. Chromium also uses /tmp.
+    shm_size: "2gb"
+    restart: "no"
+    # Optional overrides belong in the mounted config.yaml.
+    # A host .env is only read by Compose for ${MEET_NOTES_DOCKER_UID}.
+    environment:
+      MEET_NOTES_CONFIG: /config/config.yaml
+      TZ: Asia/Karachi
+    volumes:
+      - ./.meet-notes/config.yaml:/config/config.yaml:ro
+      - ./.meet-notes/secrets:/secrets:ro
+      - ./.meet-notes/profile:/profile
+      - ./.meet-notes/data:/data
+    user: "${MEET_NOTES_DOCKER_UID:-1000}:${MEET_NOTES_DOCKER_GID:-1000}"

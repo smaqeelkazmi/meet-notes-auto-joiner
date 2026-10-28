@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.rev9.meet-notes</string>
+	<!-- Replace YOUR_USER and the repo path. launchd does not expand ~. -->
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/YOUR_USER/path/to/repo/.venv/bin/meet-notes</string>
+		<string>--config</string>
+		<string>/Users/YOUR_USER/.config/meet-notes/config.yaml</string>
+		<string>run</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+	<key>ThrottleInterval</key>
+	<integer>30</integer>
+	<key>StandardOutPath</key>
+	<string>/Users/YOUR_USER/.config/meet-notes/logs/launchd.out</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/YOUR_USER/.config/meet-notes/logs/launchd.err</string>
+</dict>
+</plist>

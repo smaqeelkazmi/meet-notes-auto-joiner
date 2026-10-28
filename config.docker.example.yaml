@@ -1,0 +1,50 @@
+# Paths inside the Docker container. Copy to .meet-notes/config.yaml.
+# Secrets stay on the host: .meet-notes/secrets/credentials.json
+# and .meet-notes/data/token.json.
+
+calendar_id: primary
+timezone: Asia/Karachi
+poll_interval_seconds: 60
+lookahead_hours: 48
+join_lead_minutes: 3
+join_after_start_minutes: 10
+wait_for_participant: false
+only_organizer_meetings: true
+nobody_joined_timeout_minutes: 10
+admit_timeout_minutes: 5
+participant_poll_seconds: 5
+stay_mode: leave_after_notes
+stay_grace_minutes: 2
+alone_confirm_seconds: 20
+stay_even_if_unverified: false
+leave_even_if_unverified: true
+skip_declined: false
+skip_all_day: true
+missing_polls_before_cancel: 2
+max_prejoin_attempts: 3
+max_concurrent_joins: 4
+self_display_names:
+  - You
+  - Aqeel
+headless: true
+browser_locale: en-US
+browser_channel: chromium
+no_sandbox: true
+screenshot_on_failure: true
+navigation_timeout_seconds: 45
+notes_ui_timeout_seconds: 45
+profile_dir: /profile
+credentials_file: /secrets/credentials.json
+token_file: /data/token.json
+state_db: /data/state.db
+log_dir: /data/logs
+log_level: INFO
+dry_run: false
+oauth_port: 8765
+push:
+  enabled: false
+  listen_host: 127.0.0.1
+  listen_port: 8766
+  public_url: ""
+  channel_token: ""
+  renew_minutes_before: 60

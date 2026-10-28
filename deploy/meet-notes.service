@@ -1,0 +1,20 @@
+[Unit]
+Description=Meet Notes Auto-Joiner
+# Default cap is 4 Meet tabs in one Chromium profile. Use a host with 8 GiB or more.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=meetnotes
+Group=meetnotes
+WorkingDirectory=/opt/meet-notes
+EnvironmentFile=-/etc/meet-notes/meet-notes.env
+ExecStart=/opt/meet-notes/.venv/bin/meet-notes run
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
